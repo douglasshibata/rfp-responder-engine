@@ -1,0 +1,39 @@
+services:
+  api:
+    image: python:3.11-slim
+    container_name: rfp-responder-api
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000"
+    restart: unless-stopped
+
+  worker:
+    image: python:3.11-slim
+    container_name: rfp-responder-worker
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    depends_on:
+      - redis
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && celery -A celery_app worker --loglevel=info"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: rfp-responder-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
